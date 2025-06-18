@@ -1,13 +1,13 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Mic, Eye, EyeOff, ArrowLeft } from "lucide-react"
+import { ThemeToggle } from "@/components/theme-toggle"
+import { Mic, Eye, EyeOff, ArrowLeft, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 
@@ -18,28 +18,39 @@ export default function LoginPage() {
     email: "",
     password: "",
   })
+  const [error, setError] = useState("")
   const router = useRouter()
 
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setError("")
 
     try {
-      // TODO: Implement actual login API call
-      // const response = await fetch('/api/auth/login', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(formData)
-      // })
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      })
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const data = await response.json()
 
-      // Redirect to dashboard on successful login
-      router.push("/dashboard")
+      if (response.ok) {
+        // Store token in localStorage
+        localStorage.setItem("token", data.token)
+        localStorage.setItem("user", JSON.stringify(data.user))
+
+        // Redirect to dashboard
+        router.push("/dashboard")
+      } else {
+        setError(data.message || "Login failed")
+      }
     } catch (error) {
       console.error("Login failed:", error)
+      setError("Network error. Please try again.")
     } finally {
       setIsLoading(false)
     }
@@ -51,31 +62,45 @@ export default function LoginPage() {
       ...prev,
       [e.target.name]: e.target.value,
     }))
+    if (error) setError("")
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Back to home link */}
-        <Link href="/" className="inline-flex items-center text-slate-600 hover:text-slate-900 mb-8 transition-colors">
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to home
-        </Link>
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center p-4">
+      <div className="w-full max-w-lg">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <Link
+            href="/"
+            className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to home
+          </Link>
+          <ThemeToggle />
+        </div>
 
-        <Card className="p-8 shadow-xl border-0">
+        <Card className="p-8 shadow-2xl border-0 bg-card/50 backdrop-blur-sm">
           {/* Logo and title */}
           <div className="text-center mb-8">
-            <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center mx-auto mb-4">
-              <Mic className="w-6 h-6 text-white" />
+            <div className="w-16 h-16 bg-gradient-to-r from-primary to-primary/80 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+              <Mic className="w-8 h-8 text-primary-foreground" />
             </div>
-            <h1 className="text-2xl font-bold text-slate-900 mb-2">Welcome back</h1>
-            <p className="text-slate-600">Sign in to your StudioFlow account</p>
+            <h1 className="text-3xl font-bold mb-2">Welcome back</h1>
+            <p className="text-muted-foreground">Sign in to your StudioFlow account</p>
           </div>
+
+          {/* Error message */}
+          {error && (
+            <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm">
+              {error}
+            </div>
+          )}
 
           {/* Login form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-slate-700">
+              <Label htmlFor="email" className="text-foreground font-medium">
                 Email address
               </Label>
               <Input
@@ -85,13 +110,13 @@ export default function LoginPage() {
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="Enter your email"
-                className="h-12"
+                className="h-12 bg-background/50 border-border/50 focus:border-primary"
                 required
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-slate-700">
+              <Label htmlFor="password" className="text-foreground font-medium">
                 Password
               </Label>
               <div className="relative">
@@ -102,13 +127,13 @@ export default function LoginPage() {
                   value={formData.password}
                   onChange={handleChange}
                   placeholder="Enter your password"
-                  className="h-12 pr-12"
+                  className="h-12 pr-12 bg-background/50 border-border/50 focus:border-primary"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -119,7 +144,7 @@ export default function LoginPage() {
             <div className="text-right">
               <Link
                 href="/auth/forgot-password"
-                className="text-sm text-blue-600 hover:text-blue-700 transition-colors"
+                className="text-sm text-primary hover:text-primary/80 transition-colors"
               >
                 Forgot your password?
               </Link>
@@ -128,18 +153,25 @@ export default function LoginPage() {
             {/* Submit button */}
             <Button
               type="submit"
-              className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              className="w-full h-12 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg hover:shadow-xl transition-all duration-300"
               disabled={isLoading}
             >
-              {isLoading ? "Signing in..." : "Sign in"}
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                "Sign in"
+              )}
             </Button>
           </form>
 
           {/* Sign up link */}
-          <div className="text-center mt-6 pt-6 border-t border-slate-200">
-            <p className="text-slate-600">
+          <div className="text-center mt-8 pt-6 border-t border-border/50">
+            <p className="text-muted-foreground">
               Don't have an account?{" "}
-              <Link href="/auth/register" className="text-blue-600 hover:text-blue-700 font-medium transition-colors">
+              <Link href="/auth/register" className="text-primary hover:text-primary/80 font-medium transition-colors">
                 Sign up for free
               </Link>
             </p>

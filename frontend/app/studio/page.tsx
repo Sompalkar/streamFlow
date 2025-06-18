@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { ThemeToggle } from "@/components/theme-toggle"
 import {
   Mic,
   MicOff,
@@ -18,6 +20,8 @@ import {
   Square,
   Volume2,
   VolumeX,
+  Monitor,
+  Maximize,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -50,6 +54,7 @@ export default function StudioPage() {
   const [chatMessage, setChatMessage] = useState("")
   const [participants, setParticipants] = useState(mockParticipants)
   const [messages, setMessages] = useState(mockMessages)
+  const [isFullscreen, setIsFullscreen] = useState(false)
 
   // Refs for media elements
   const localVideoRef = useRef<HTMLVideoElement>(null)
@@ -162,17 +167,17 @@ export default function StudioPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col">
       {/* Header */}
-      <div className="bg-slate-800 border-b border-slate-700 px-6 py-4">
+      <div className="bg-slate-800/80 backdrop-blur-xl border-b border-slate-700/50 px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <Link href="/dashboard" className="text-slate-400 hover:text-white transition-colors">
               ← Back to Dashboard
             </Link>
             <div className="flex items-center space-x-2">
-              <div className="w-6 h-6 bg-gradient-to-r from-blue-600 to-purple-600 rounded flex items-center justify-center">
-                <Mic className="w-3 h-3 text-white" />
+              <div className="w-6 h-6 bg-gradient-to-r from-primary to-primary/80 rounded flex items-center justify-center">
+                <Mic className="w-3 h-3 text-primary-foreground" />
               </div>
               <span className="text-white font-medium">Recording Studio</span>
             </div>
@@ -181,15 +186,21 @@ export default function StudioPage() {
           <div className="flex items-center space-x-4">
             {/* Recording indicator */}
             {isRecording && (
-              <div className="flex items-center space-x-2 bg-red-600 px-3 py-1 rounded-full">
-                <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-                <span className="text-white text-sm font-medium">REC {formatTime(recordingTime)}</span>
-              </div>
+              <Badge className="bg-red-500/20 text-red-400 border-red-500/30 px-3 py-1">
+                <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse mr-2" />
+                REC {formatTime(recordingTime)}
+              </Badge>
             )}
 
-            <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white">
-              <Settings className="w-4 h-4" />
-            </Button>
+            <div className="flex items-center space-x-2">
+              <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+                {participants.length} participants
+              </Badge>
+              <ThemeToggle />
+              <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white">
+                <Settings className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -199,15 +210,21 @@ export default function StudioPage() {
         <div className="flex-1 p-6">
           <div className="grid grid-cols-2 gap-4 h-full">
             {/* Local Video (You) */}
-            <Card className="bg-slate-800 border-slate-700 overflow-hidden relative">
+            <Card className="bg-slate-800/50 backdrop-blur-sm border-slate-700/50 overflow-hidden relative group">
               <video ref={localVideoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
-              <div className="absolute bottom-4 left-4 bg-black/50 px-2 py-1 rounded text-white text-sm">
-                You {isMuted && <MicOff className="w-3 h-3 inline ml-1" />}
+              <div className="absolute bottom-4 left-4 bg-black/70 backdrop-blur-sm px-3 py-1 rounded-full text-white text-sm flex items-center space-x-2">
+                <span>You</span>
+                {isMuted && <MicOff className="w-3 h-3 text-red-400" />}
+              </div>
+              <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button size="sm" variant="ghost" className="bg-black/50 backdrop-blur-sm text-white hover:bg-black/70">
+                  <Maximize className="w-4 h-4" />
+                </Button>
               </div>
               {!isVideoOn && (
-                <div className="absolute inset-0 bg-slate-700 flex items-center justify-center">
-                  <div className="w-16 h-16 bg-slate-600 rounded-full flex items-center justify-center">
-                    <span className="text-white text-xl font-medium">JD</span>
+                <div className="absolute inset-0 bg-slate-700/90 backdrop-blur-sm flex items-center justify-center">
+                  <div className="w-20 h-20 bg-slate-600 rounded-full flex items-center justify-center">
+                    <span className="text-white text-2xl font-medium">JD</span>
                   </div>
                 </div>
               )}
@@ -215,15 +232,18 @@ export default function StudioPage() {
 
             {/* Remote Participants */}
             {participants.slice(1).map((participant, index) => (
-              <Card key={participant.id} className="bg-slate-800 border-slate-700 overflow-hidden relative">
-                <div className="w-full h-full bg-slate-700 flex items-center justify-center">
+              <Card
+                key={participant.id}
+                className="bg-slate-800/50 backdrop-blur-sm border-slate-700/50 overflow-hidden relative group"
+              >
+                <div className="w-full h-full bg-gradient-to-br from-slate-700/50 to-slate-800/50 flex items-center justify-center">
                   {participant.isVideoOn ? (
                     <div className="w-full h-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center">
                       <span className="text-white text-lg">📹 {participant.name}</span>
                     </div>
                   ) : (
-                    <div className="w-16 h-16 bg-slate-600 rounded-full flex items-center justify-center">
-                      <span className="text-white text-xl font-medium">
+                    <div className="w-20 h-20 bg-slate-600 rounded-full flex items-center justify-center">
+                      <span className="text-white text-2xl font-medium">
                         {participant.name
                           .split(" ")
                           .map((n) => n[0])
@@ -232,9 +252,18 @@ export default function StudioPage() {
                     </div>
                   )}
                 </div>
-                <div className="absolute bottom-4 left-4 bg-black/50 px-2 py-1 rounded text-white text-sm flex items-center">
-                  {participant.name}
-                  {participant.isMuted && <MicOff className="w-3 h-3 ml-1" />}
+                <div className="absolute bottom-4 left-4 bg-black/70 backdrop-blur-sm px-3 py-1 rounded-full text-white text-sm flex items-center space-x-2">
+                  <span>{participant.name}</span>
+                  {participant.isMuted && <MicOff className="w-3 h-3 text-red-400" />}
+                </div>
+                <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="bg-black/50 backdrop-blur-sm text-white hover:bg-black/70"
+                  >
+                    <Maximize className="w-4 h-4" />
+                  </Button>
                 </div>
               </Card>
             ))}
@@ -243,7 +272,7 @@ export default function StudioPage() {
             {Array.from({ length: Math.max(0, 4 - participants.length) }).map((_, index) => (
               <Card
                 key={`empty-${index}`}
-                className="bg-slate-800 border-slate-700 border-dashed flex items-center justify-center"
+                className="bg-slate-800/30 backdrop-blur-sm border-slate-700/30 border-dashed flex items-center justify-center"
               >
                 <div className="text-center text-slate-500">
                   <Users className="w-8 h-8 mx-auto mb-2" />
@@ -256,15 +285,18 @@ export default function StudioPage() {
 
         {/* Chat Sidebar */}
         {showChat && (
-          <div className="w-80 bg-slate-800 border-l border-slate-700 flex flex-col">
-            <div className="p-4 border-b border-slate-700">
+          <div className="w-80 bg-slate-800/50 backdrop-blur-xl border-l border-slate-700/50 flex flex-col">
+            <div className="p-4 border-b border-slate-700/50">
               <div className="flex items-center justify-between">
-                <h3 className="text-white font-medium">Chat</h3>
+                <h3 className="text-white font-medium flex items-center">
+                  <MessageCircle className="w-4 h-4 mr-2" />
+                  Chat
+                </h3>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowChat(false)}
-                  className="text-slate-400 hover:text-white"
+                  className="text-slate-400 hover:text-white h-8 w-8 p-0"
                 >
                   ×
                 </Button>
@@ -279,22 +311,24 @@ export default function StudioPage() {
                     <span className="text-sm font-medium text-slate-300">{message.sender}</span>
                     <span className="text-xs text-slate-500">{message.timestamp}</span>
                   </div>
-                  <p className="text-sm text-slate-200 bg-slate-700 rounded p-2">{message.message}</p>
+                  <p className="text-sm text-slate-200 bg-slate-700/50 backdrop-blur-sm rounded-lg p-3 border border-slate-600/30">
+                    {message.message}
+                  </p>
                 </div>
               ))}
             </div>
 
             {/* Message Input */}
-            <div className="p-4 border-t border-slate-700">
+            <div className="p-4 border-t border-slate-700/50">
               <div className="flex space-x-2">
                 <Input
                   value={chatMessage}
                   onChange={(e) => setChatMessage(e.target.value)}
                   placeholder="Type a message..."
-                  className="bg-slate-700 border-slate-600 text-white placeholder-slate-400"
+                  className="bg-slate-700/50 border-slate-600/50 text-white placeholder-slate-400 focus:border-primary"
                   onKeyPress={(e) => e.key === "Enter" && sendMessage()}
                 />
-                <Button onClick={sendMessage} size="sm" className="bg-blue-600 hover:bg-blue-700">
+                <Button onClick={sendMessage} size="sm" className="bg-primary hover:bg-primary/80 px-3">
                   <Send className="w-4 h-4" />
                 </Button>
               </div>
@@ -304,14 +338,14 @@ export default function StudioPage() {
       </div>
 
       {/* Controls Bar */}
-      <div className="bg-slate-800 border-t border-slate-700 px-6 py-4">
+      <div className="bg-slate-800/80 backdrop-blur-xl border-t border-slate-700/50 px-6 py-4">
         <div className="flex items-center justify-center space-x-4">
           {/* Microphone Control */}
           <Button
             onClick={toggleMicrophone}
             size="lg"
             variant={isMuted ? "destructive" : "secondary"}
-            className="rounded-full w-12 h-12 p-0"
+            className="rounded-full w-12 h-12 p-0 shadow-lg hover:shadow-xl transition-all duration-300"
           >
             {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
           </Button>
@@ -321,7 +355,7 @@ export default function StudioPage() {
             onClick={toggleVideo}
             size="lg"
             variant={!isVideoOn ? "destructive" : "secondary"}
-            className="rounded-full w-12 h-12 p-0"
+            className="rounded-full w-12 h-12 p-0 shadow-lg hover:shadow-xl transition-all duration-300"
           >
             {isVideoOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
           </Button>
@@ -331,7 +365,7 @@ export default function StudioPage() {
             onClick={toggleRecording}
             size="lg"
             variant={isRecording ? "destructive" : "default"}
-            className="rounded-full w-16 h-12 px-6"
+            className="rounded-full w-16 h-12 px-6 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700"
           >
             {isRecording ? <Square className="w-5 h-5" /> : <Record className="w-5 h-5" />}
           </Button>
@@ -341,7 +375,7 @@ export default function StudioPage() {
             onClick={() => setIsSpeakerOn(!isSpeakerOn)}
             size="lg"
             variant={!isSpeakerOn ? "destructive" : "secondary"}
-            className="rounded-full w-12 h-12 p-0"
+            className="rounded-full w-12 h-12 p-0 shadow-lg hover:shadow-xl transition-all duration-300"
           >
             {isSpeakerOn ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
           </Button>
@@ -351,13 +385,26 @@ export default function StudioPage() {
             onClick={() => setShowChat(!showChat)}
             size="lg"
             variant="secondary"
-            className="rounded-full w-12 h-12 p-0"
+            className="rounded-full w-12 h-12 p-0 shadow-lg hover:shadow-xl transition-all duration-300"
           >
             <MessageCircle className="w-5 h-5" />
           </Button>
 
+          {/* Screen Share */}
+          <Button
+            size="lg"
+            variant="secondary"
+            className="rounded-full w-12 h-12 p-0 shadow-lg hover:shadow-xl transition-all duration-300"
+          >
+            <Monitor className="w-5 h-5" />
+          </Button>
+
           {/* Leave Call */}
-          <Button size="lg" variant="destructive" className="rounded-full w-12 h-12 p-0 ml-8">
+          <Button
+            size="lg"
+            variant="destructive"
+            className="rounded-full w-12 h-12 p-0 ml-8 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
+          >
             <PhoneOff className="w-5 h-5" />
           </Button>
         </div>

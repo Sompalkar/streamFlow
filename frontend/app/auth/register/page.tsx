@@ -1,14 +1,14 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Mic, Eye, EyeOff, ArrowLeft } from "lucide-react"
+import { ThemeToggle } from "@/components/theme-toggle"
+import { Mic, Eye, EyeOff, ArrowLeft, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 
@@ -66,24 +66,33 @@ export default function RegisterPage() {
     setIsLoading(true)
 
     try {
-      // TODO: Implement actual registration API call
-      // const response = await fetch('/api/auth/register', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({
-      //     name: formData.name,
-      //     email: formData.email,
-      //     password: formData.password
-      //   })
-      // })
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/auth/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+        }),
+      })
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const data = await response.json()
 
-      // Redirect to dashboard on successful registration
-      router.push("/dashboard")
+      if (response.ok) {
+        // Store token in localStorage
+        localStorage.setItem("token", data.token)
+        localStorage.setItem("user", JSON.stringify(data.user))
+
+        // Redirect to dashboard
+        router.push("/dashboard")
+      } else {
+        setErrors({ general: data.message || "Registration failed" })
+      }
     } catch (error) {
       console.error("Registration failed:", error)
+      setErrors({ general: "Network error. Please try again." })
     } finally {
       setIsLoading(false)
     }
@@ -101,28 +110,41 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Back to home link */}
-        <Link href="/" className="inline-flex items-center text-slate-600 hover:text-slate-900 mb-8 transition-colors">
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to home
-        </Link>
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center p-4">
+      <div className="w-full max-w-lg">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <Link
+            href="/"
+            className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to home
+          </Link>
+          <ThemeToggle />
+        </div>
 
-        <Card className="p-8 shadow-xl border-0">
+        <Card className="p-8 shadow-2xl border-0 bg-card/50 backdrop-blur-sm">
           {/* Logo and title */}
           <div className="text-center mb-8">
-            <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center mx-auto mb-4">
-              <Mic className="w-6 h-6 text-white" />
+            <div className="w-16 h-16 bg-gradient-to-r from-primary to-primary/80 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+              <Mic className="w-8 h-8 text-primary-foreground" />
             </div>
-            <h1 className="text-2xl font-bold text-slate-900 mb-2">Create your account</h1>
-            <p className="text-slate-600">Start recording professional content today</p>
+            <h1 className="text-3xl font-bold mb-2">Create your account</h1>
+            <p className="text-muted-foreground">Start recording professional content today</p>
           </div>
+
+          {/* Error message */}
+          {errors.general && (
+            <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm">
+              {errors.general}
+            </div>
+          )}
 
           {/* Registration form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="name" className="text-slate-700">
+              <Label htmlFor="name" className="text-foreground font-medium">
                 Full name
               </Label>
               <Input
@@ -132,14 +154,14 @@ export default function RegisterPage() {
                 value={formData.name}
                 onChange={handleChange}
                 placeholder="Enter your full name"
-                className={`h-12 ${errors.name ? "border-red-500" : ""}`}
+                className={`h-12 bg-background/50 border-border/50 focus:border-primary ${errors.name ? "border-destructive" : ""}`}
                 required
               />
-              {errors.name && <p className="text-sm text-red-600">{errors.name}</p>}
+              {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-slate-700">
+              <Label htmlFor="email" className="text-foreground font-medium">
                 Email address
               </Label>
               <Input
@@ -149,14 +171,14 @@ export default function RegisterPage() {
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="Enter your email"
-                className={`h-12 ${errors.email ? "border-red-500" : ""}`}
+                className={`h-12 bg-background/50 border-border/50 focus:border-primary ${errors.email ? "border-destructive" : ""}`}
                 required
               />
-              {errors.email && <p className="text-sm text-red-600">{errors.email}</p>}
+              {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-slate-700">
+              <Label htmlFor="password" className="text-foreground font-medium">
                 Password
               </Label>
               <div className="relative">
@@ -167,22 +189,22 @@ export default function RegisterPage() {
                   value={formData.password}
                   onChange={handleChange}
                   placeholder="Create a password"
-                  className={`h-12 pr-12 ${errors.password ? "border-red-500" : ""}`}
+                  className={`h-12 pr-12 bg-background/50 border-border/50 focus:border-primary ${errors.password ? "border-destructive" : ""}`}
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
-              {errors.password && <p className="text-sm text-red-600">{errors.password}</p>}
+              {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword" className="text-slate-700">
+              <Label htmlFor="confirmPassword" className="text-foreground font-medium">
                 Confirm password
               </Label>
               <Input
@@ -192,10 +214,10 @@ export default function RegisterPage() {
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 placeholder="Confirm your password"
-                className={`h-12 ${errors.confirmPassword ? "border-red-500" : ""}`}
+                className={`h-12 bg-background/50 border-border/50 focus:border-primary ${errors.confirmPassword ? "border-destructive" : ""}`}
                 required
               />
-              {errors.confirmPassword && <p className="text-sm text-red-600">{errors.confirmPassword}</p>}
+              {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword}</p>}
             </div>
 
             {/* Terms and conditions */}
@@ -212,35 +234,42 @@ export default function RegisterPage() {
                 className="mt-1"
               />
               <div className="text-sm">
-                <Label htmlFor="terms" className="text-slate-700 cursor-pointer">
+                <Label htmlFor="terms" className="text-foreground cursor-pointer">
                   I agree to the{" "}
-                  <Link href="/terms" className="text-blue-600 hover:text-blue-700">
+                  <Link href="/terms" className="text-primary hover:text-primary/80">
                     Terms of Service
                   </Link>{" "}
                   and{" "}
-                  <Link href="/privacy" className="text-blue-600 hover:text-blue-700">
+                  <Link href="/privacy" className="text-primary hover:text-primary/80">
                     Privacy Policy
                   </Link>
                 </Label>
-                {errors.terms && <p className="text-red-600 mt-1">{errors.terms}</p>}
+                {errors.terms && <p className="text-destructive mt-1">{errors.terms}</p>}
               </div>
             </div>
 
             {/* Submit button */}
             <Button
               type="submit"
-              className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+              className="w-full h-12 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg hover:shadow-xl transition-all duration-300"
               disabled={isLoading}
             >
-              {isLoading ? "Creating account..." : "Create account"}
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creating account...
+                </>
+              ) : (
+                "Create account"
+              )}
             </Button>
           </form>
 
           {/* Sign in link */}
-          <div className="text-center mt-6 pt-6 border-t border-slate-200">
-            <p className="text-slate-600">
+          <div className="text-center mt-8 pt-6 border-t border-border/50">
+            <p className="text-muted-foreground">
               Already have an account?{" "}
-              <Link href="/auth/login" className="text-blue-600 hover:text-blue-700 font-medium transition-colors">
+              <Link href="/auth/login" className="text-primary hover:text-primary/80 font-medium transition-colors">
                 Sign in
               </Link>
             </p>
