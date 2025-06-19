@@ -25,8 +25,11 @@ import {
   Grid3X3,
   List,
   Zap,
+  Users,
+  Copy,
+  ExternalLink,
 } from "lucide-react"
-import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 // Mock data for recordings
 const mockRecordings = [
@@ -77,19 +80,94 @@ const mockRecordings = [
 ]
 
 export default function DashboardPage() {
+  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
   const [recordings, setRecordings] = useState(mockRecordings)
+  const [sessions, setSessions] = useState<any[]>([])
   const [user, setUser] = useState({ name: "John Doe", email: "john@example.com", plan: "pro" })
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [filterStatus, setFilterStatus] = useState<"all" | "completed" | "processing">("all")
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [newSessionTitle, setNewSessionTitle] = useState("")
+  const [isCreating, setIsCreating] = useState(false)
 
-  // Load user data from localStorage
+  // Load user data and sessions from localStorage/API
   useEffect(() => {
     const userData = localStorage.getItem("user")
     if (userData) {
       setUser(JSON.parse(userData))
     }
+    loadSessions()
   }, [])
+
+  // Load sessions from API
+  const loadSessions = async () => {
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/sessions`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setSessions(data.sessions)
+      }
+    } catch (error) {
+      console.error("Failed to load sessions:", error)
+    }
+  }
+
+  // Create new session
+  const createSession = async () => {
+    if (!newSessionTitle.trim()) return
+
+    setIsCreating(true)
+    try {
+      const token = localStorage.getItem("token")
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/sessions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: newSessionTitle,
+          settings: {
+            maxParticipants: 10,
+            recordVideo: true,
+            recordAudio: true,
+            allowChat: true,
+            autoTranscribe: false,
+          },
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setShowCreateModal(false)
+        setNewSessionTitle("")
+        router.push(`/studio?session=${data.session._id}`)
+      }
+    } catch (error) {
+      console.error("Failed to create session:", error)
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  // Join session
+  const joinSession = (sessionId: string) => {
+    router.push(`/studio?session=${sessionId}`)
+  }
+
+  // Copy session link
+  const copySessionLink = (sessionId: string) => {
+    const link = `${window.location.origin}/studio?session=${sessionId}`
+    navigator.clipboard.writeText(link)
+    // Show toast notification
+  }
 
   // Filter recordings based on search query and status
   const filteredRecordings = recordings.filter((recording) => {
@@ -97,12 +175,6 @@ export default function DashboardPage() {
     const matchesStatus = filterStatus === "all" || recording.status === filterStatus
     return matchesSearch && matchesStatus
   })
-
-  // Handle creating a new recording session
-  const handleNewRecording = () => {
-    // TODO: Implement new recording session creation
-    console.log("Creating new recording session...")
-  }
 
   // Calculate stats
   const totalRecordings = recordings.length
@@ -215,7 +287,7 @@ export default function DashboardPage() {
         <div className="grid md:grid-cols-3 gap-6 mb-8">
           <Card
             className="p-6 border-0 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group bg-gradient-to-br from-primary/5 to-primary/10 hover:from-primary/10 hover:to-primary/20"
-            onClick={handleNewRecording}
+            onClick={() => setShowCreateModal(true)}
           >
             <div className="flex items-center space-x-4">
               <div className="w-14 h-14 bg-gradient-to-r from-primary to-primary/80 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg">
@@ -228,19 +300,17 @@ export default function DashboardPage() {
             </div>
           </Card>
 
-          <Link href="/studio">
-            <Card className="p-6 border-0 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group bg-gradient-to-br from-green-500/5 to-green-500/10 hover:from-green-500/10 hover:to-green-500/20">
-              <div className="flex items-center space-x-4">
-                <div className="w-14 h-14 bg-gradient-to-r from-green-500 to-green-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                  <Video className="w-7 h-7 text-white" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-lg group-hover:text-green-600 transition-colors">Join Session</h3>
-                  <p className="text-sm text-muted-foreground">Join an existing recording</p>
-                </div>
+          <Card className="p-6 border-0 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group bg-gradient-to-br from-green-500/5 to-green-500/10 hover:from-green-500/10 hover:to-green-500/20">
+            <div className="flex items-center space-x-4">
+              <div className="w-14 h-14 bg-gradient-to-r from-green-500 to-green-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                <Video className="w-7 h-7 text-white" />
               </div>
-            </Card>
-          </Link>
+              <div>
+                <h3 className="font-semibold text-lg group-hover:text-green-600 transition-colors">Join Session</h3>
+                <p className="text-sm text-muted-foreground">Join an existing recording</p>
+              </div>
+            </div>
+          </Card>
 
           <Card className="p-6 border-0 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group bg-gradient-to-br from-purple-500/5 to-purple-500/10 hover:from-purple-500/10 hover:to-purple-500/20">
             <div className="flex items-center space-x-4">
@@ -254,6 +324,59 @@ export default function DashboardPage() {
             </div>
           </Card>
         </div>
+
+        {/* Active Sessions */}
+        {sessions.length > 0 && (
+          <Card className="border-0 shadow-xl bg-card/50 backdrop-blur-sm mb-8">
+            <div className="p-6">
+              <h2 className="text-2xl font-semibold mb-6">Active Sessions</h2>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {sessions.map((session) => (
+                  <Card
+                    key={session._id}
+                    className="p-4 border border-border/50 hover:shadow-lg transition-all duration-300"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="font-medium truncate">{session.title}</h3>
+                      <Badge
+                        className={
+                          session.status === "active"
+                            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                            : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                        }
+                      >
+                        {session.status}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center space-x-4 text-sm text-muted-foreground mb-4">
+                      <div className="flex items-center">
+                        <Users className="w-4 h-4 mr-1" />
+                        {session.participantCount || 0}
+                      </div>
+                      <div className="flex items-center">
+                        <Calendar className="w-4 h-4 mr-1" />
+                        {new Date(session.createdAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        size="sm"
+                        onClick={() => joinSession(session._id)}
+                        className="flex-1 bg-primary hover:bg-primary/80"
+                      >
+                        <ExternalLink className="w-4 h-4 mr-2" />
+                        Join
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => copySessionLink(session._id)} className="px-3">
+                        <Copy className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* Recordings Section */}
         <Card className="border-0 shadow-xl bg-card/50 backdrop-blur-sm">
@@ -454,7 +577,7 @@ export default function DashboardPage() {
                 </p>
                 {!searchQuery && (
                   <Button
-                    onClick={handleNewRecording}
+                    onClick={() => setShowCreateModal(true)}
                     className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
                   >
                     <Plus className="w-4 h-4 mr-2" />
@@ -466,6 +589,43 @@ export default function DashboardPage() {
           </div>
         </Card>
       </div>
+
+      {/* Create Session Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <Card className="w-full max-w-md mx-4 p-6">
+            <h3 className="text-lg font-semibold mb-4">Create New Recording Session</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Session Title</label>
+                <Input
+                  value={newSessionTitle}
+                  onChange={(e) => setNewSessionTitle(e.target.value)}
+                  placeholder="Enter session title..."
+                  className="w-full"
+                />
+              </div>
+              <div className="flex space-x-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowCreateModal(false)}
+                  className="flex-1"
+                  disabled={isCreating}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={createSession}
+                  className="flex-1 bg-gradient-to-r from-primary to-primary/80"
+                  disabled={isCreating || !newSessionTitle.trim()}
+                >
+                  {isCreating ? "Creating..." : "Create & Join"}
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }

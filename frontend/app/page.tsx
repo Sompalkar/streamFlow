@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { Play, Users, MessageCircle, History, Mic, Video, Sparkles, ArrowRight, Check, Star, Zap } from "lucide-react"
+import { Play, Users, MessageCircle, History, Mic, Video, Sparkles, ArrowRight, Check, Star, Zap, Camera } from "lucide-react"
 import Link from "next/link"
 
+import { motion, useInView } from "framer-motion"
 export default function LandingPage() {
   const [isVisible, setIsVisible] = useState(false)
   const [activeFeature, setActiveFeature] = useState(0)
@@ -183,6 +184,137 @@ export default function LandingPage() {
                 <div className="text-sm text-muted-foreground">Rating</div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+
+        {/* Second Hero Section - Interactive Demo */}
+        <section className="py-20 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-purple-500/5" />
+        <div className="max-w-7xl mx-auto">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <motion.div
+              initial={{ opacity: 0, x: -50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8 }}
+              viewport={{ once: true }}
+            >
+              <Badge className="mb-4 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                <Zap className="w-4 h-4 mr-2" />
+                Live Demo
+              </Badge>
+              <h2 className="text-4xl md:text-5xl font-bold mb-6">
+                See StudioFlow in{" "}
+                <span className="bg-gradient-to-r from-green-500 to-emerald-500 bg-clip-text text-transparent">
+                  Action
+                </span>
+              </h2>
+              <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
+                Watch how easy it is to create professional recordings with multiple participants, 
+                real-time collaboration, and AI-powered features.
+              </p>
+              <div className="space-y-4 mb-8">
+                {[
+                  "One-click recording start",
+                  "Automatic participant sync",
+                  "Real-time quality monitoring",
+                  "Instant AI transcription",
+                ].map((item, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, x: -20 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1, duration: 0.5 }}
+                    viewport={{ once: true }}
+                    className="flex items-center space-x-3"
+                  >
+                    <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                      <Check className="w-4 h-4 text-white" />
+                    </div>
+                    <span className="text-muted-foreground">{item}</span>
+                  </motion.div>
+                ))}
+              </div>
+              <Link href="/auth/register">
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <Button size="lg" className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600">
+                    Try It Now
+                    <ArrowRight className="w-5 h-5 ml-2" />
+                  </Button>
+                </motion.div>
+              </Link>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: 50 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8 }}
+              viewport={{ once: true }}
+              className="relative"
+            >
+              <div className="relative bg-gradient-to-br from-card to-card/50 rounded-2xl p-8 shadow-2xl border">
+                <div className="absolute top-4 left-4 flex space-x-2">
+                  <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                  <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                </div>
+                
+                <div className="mt-8 space-y-4">
+                  <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-gradient-to-r from-primary to-primary/80 rounded-full flex items-center justify-center">
+                        <Users className="w-5 h-5 text-primary-foreground" />
+                      </div>
+                      <div>
+                        <div className="font-medium">Team Meeting</div>
+                        <div className="text-sm text-muted-foreground">5 participants</div>
+                      </div>
+                    </div>
+                    <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                      Recording
+                    </Badge>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    {[1, 2, 3, 4].map((i) => (
+                      <motion.div
+                        key={i}
+                        animate={{ 
+                          scale: [1, 1.02, 1],
+                          opacity: [0.8, 1, 0.8]
+                        }}
+                        transition={{ 
+                          duration: 2,
+                          repeat: Number.POSITIVE_INFINITY,
+                          delay: i * 0.2
+                        }}
+                        className="aspect-video bg-gradient-to-br from-muted to-muted/50 rounded-lg flex items-center justify-center"
+                      >
+                        <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center">
+                          <Camera className="w-4 h-4 text-primary" />
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-4 bg-primary/5 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
+                        className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full"
+                      />
+                      <span className="text-sm">AI Transcription in progress...</span>
+                    </div>
+                    <div className="text-sm text-muted-foreground">99% accuracy</div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
           </div>
         </div>
       </section>
