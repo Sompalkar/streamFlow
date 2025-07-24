@@ -139,7 +139,8 @@ const connectDatabase = async () => {
       maxPoolSize: 10,
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
-      bufferCommands: false, 
+      bufferCommands: false,
+      bufferMaxEntries: 0,
     })
     console.log("✅ Connected to MongoDB successfully")
 
@@ -308,7 +309,6 @@ app.post("/api/upload/recording", uploadLimiter, authenticateToken, upload.singl
       originalName: req.file.originalname,
       fileSize: req.file.size,
       mimeType: req.file.mimetype,
-      duration: uploadResult.duration || 0,
     })
 
     // Start transcription if enabled
@@ -492,7 +492,8 @@ const initializeServices = async () => {
       await cloudinary.api.ping()
       console.log("✅ Cloudinary connection verified")
     } catch (error) {
-      console.warn("⚠️ Cloudinary connection failed:", error.message)
+      const errorMessage = error instanceof Error ? error.message : "Unknown error"
+      console.warn("⚠️ Cloudinary connection failed:", errorMessage)
     }
   } catch (error) {
     console.error("❌ Service initialization error:", error)

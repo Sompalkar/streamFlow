@@ -1,109 +1,58 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { ThemeToggle } from "@/components/theme-toggle"
-import {
-  Plus,
-  Search,
-  Calendar,
-  Clock,
-  Play,
-  Download,
-  MoreHorizontal,
-  Mic,
-  Video,
-  Settings,
-  LogOut,
-  TrendingUp,
-  FileText,
-  Share2,
-  Star,
-  Grid3X3,
-  List,
-  Zap,
-  Users,
-  Copy,
-  ExternalLink,
-} from "lucide-react"
 import { useRouter } from "next/navigation"
-
-// Mock data for recordings
-const mockRecordings = [
-  {
-    id: "1",
-    title: "Weekly Team Standup",
-    date: "2024-01-15",
-    duration: "45:32",
-    participants: 5,
-    status: "completed",
-    thumbnail: "/placeholder.svg?height=120&width=200",
-    views: 23,
-    transcribed: true,
-  },
-  {
-    id: "2",
-    title: "Product Strategy Discussion",
-    date: "2024-01-14",
-    duration: "1:23:45",
-    participants: 3,
-    status: "processing",
-    thumbnail: "/placeholder.svg?height=120&width=200",
-    views: 12,
-    transcribed: false,
-  },
-  {
-    id: "3",
-    title: "Client Interview Session",
-    date: "2024-01-12",
-    duration: "32:18",
-    participants: 2,
-    status: "completed",
-    thumbnail: "/placeholder.svg?height=120&width=200",
-    views: 45,
-    transcribed: true,
-  },
-  {
-    id: "4",
-    title: "Marketing Campaign Review",
-    date: "2024-01-10",
-    duration: "28:45",
-    participants: 4,
-    status: "completed",
-    thumbnail: "/placeholder.svg?height=120&width=200",
-    views: 18,
-    transcribed: true,
-  },
-]
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Plus, Calendar, Users, Clock, Play, Settings, Trash2 } from "lucide-react"
+import { useAuthStore } from "@/lib/store"
 
 export default function DashboardPage() {
   const router = useRouter()
-  const [searchQuery, setSearchQuery] = useState("")
-  const [recordings, setRecordings] = useState(mockRecordings)
+  const { user, token, isAuthenticated } = useAuthStore()
+
   const [sessions, setSessions] = useState<any[]>([])
-  const [user, setUser] = useState({ name: "John Doe", email: "john@example.com", plan: "pro" })
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
-  const [filterStatus, setFilterStatus] = useState<"all" | "completed" | "processing">("all")
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [newSessionTitle, setNewSessionTitle] = useState("")
+  const [isLoading, setIsLoading] = useState(true)
   const [isCreating, setIsCreating] = useState(false)
+  const [showCreateDialog, setShowCreateDialog] = useState(false)
 
-  // Load user data and sessions from localStorage/API
+  // Form state
+  const [title, setTitle] = useState("")
+  const [description, setDescription] = useState("")
+  const [participants, setParticipants] = useState("")
+  const [settings, setSettings] = useState({
+    maxParticipants: 10,
+    recordVideo: true,
+    recordAudio: true,
+    allowChat: true,
+    autoTranscribe: true,
+  })
+
   useEffect(() => {
-    const userData = localStorage.getItem("user")
-    if (userData) {
-      setUser(JSON.parse(userData))
-    }
-    loadSessions()
-  }, [])
+    // if (!isAuthenticated) {
+    //   router.push("/auth/login")
+    //   return
+    // }
 
-  // Load sessions from API
-  const loadSessions = async () => {
+    fetchSessions()
+  }, [isAuthenticated])
+
+  const fetchSessions = async () => {
     try {
-      const token = localStorage.getItem("token")
+      setIsLoading(true)
+
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/sessions`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -112,520 +61,354 @@ export default function DashboardPage() {
 
       if (response.ok) {
         const data = await response.json()
-        setSessions(data.sessions)
+        setSessions(data.data || [])
       }
     } catch (error) {
-      console.error("Failed to load sessions:", error)
+      console.error("Failed to fetch sessions:", error)
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  // Create new session
   const createSession = async () => {
-    if (!newSessionTitle.trim()) return
+    if (!title.trim()) return
 
-    setIsCreating(true)
     try {
-      const token = localStorage.getItem("token")
+      setIsCreating(true)
+
+      // Parse participants
+      const participantList = participants
+        .split(",")
+        .map((email) => email.trim())
+        .filter((email) => email)
+        .map((email) => ({
+          email,
+          name: email.split("@")[0], // Use email prefix as name
+        }))
+
+      const sessionData = {
+        title: title.trim(),
+        description: description.trim(),
+        participants: participantList,
+        settings,
+      }
+
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/sessions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          title: newSessionTitle,
-          settings: {
-            maxParticipants: 10,
-            recordVideo: true,
-            recordAudio: true,
-            allowChat: true,
-            autoTranscribe: false,
-          },
-        }),
+        body: JSON.stringify(sessionData),
       })
 
       if (response.ok) {
         const data = await response.json()
-        setShowCreateModal(false)
-        setNewSessionTitle("")
-        router.push(`/studio?session=${data.session._id}`)
+        console.log("✅ Session created successfully:", data)
+
+        // Reset form
+        setTitle("")
+        setDescription("")
+        setParticipants("")
+        setShowCreateDialog(false)
+
+        // Refresh sessions
+        fetchSessions()
+      } else {
+        const errorData = await response.json()
+        console.error("❌ Failed to create session:", errorData)
       }
     } catch (error) {
-      console.error("Failed to create session:", error)
+      console.error("❌ Error creating session:", error)
     } finally {
       setIsCreating(false)
     }
   }
 
-  // Join session
   const joinSession = (sessionId: string) => {
     router.push(`/studio?session=${sessionId}`)
   }
 
-  // Copy session link
-  const copySessionLink = (sessionId: string) => {
-    const link = `${window.location.origin}/studio?session=${sessionId}`
-    navigator.clipboard.writeText(link)
-    // Show toast notification
+  const deleteSession = async (sessionId: string) => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/sessions/${sessionId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      )
+
+      if (response.ok) {
+        fetchSessions()
+      }
+    } catch (error) {
+      console.error("Failed to delete session:", error)
+    }
   }
 
-  // Filter recordings based on search query and status
-  const filteredRecordings = recordings.filter((recording) => {
-    const matchesSearch = recording.title.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesStatus = filterStatus === "all" || recording.status === filterStatus
-    return matchesSearch && matchesStatus
-  })
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  }
 
-  // Calculate stats
-  const totalRecordings = recordings.length
-  const totalViews = recordings.reduce((sum, r) => sum + r.views, 0)
-  const completedRecordings = recordings.filter((r) => r.status === "completed").length
-  const transcribedRecordings = recordings.filter((r) => r.transcribed).length
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "active":
+        return "bg-green-100 text-green-800"
+      case "completed":
+        return "bg-blue-100 text-blue-800"
+      case "cancelled":
+        return "bg-red-100 text-red-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gradient-to-r from-primary to-primary/80 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <div className="w-8 h-8 border-4 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+          </div>
+          <h2 className="text-xl font-semibold mb-2">Loading Dashboard...</h2>
+          <p className="text-muted-foreground">Getting your sessions ready</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-      {/* Navigation Header */}
-      <nav className="bg-card/50 backdrop-blur-xl border-b border-border/50 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-r from-primary to-primary/80 rounded-xl flex items-center justify-center shadow-lg">
-                <Mic className="w-4 h-4 text-primary-foreground" />
-              </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
-                StudioFlow
-              </span>
+      {/* Header */}
+      <div className="bg-card/50 backdrop-blur-xl border-b border-border/50 px-6 py-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold">Welcome back, {user?.name}!</h1>
+              <p className="text-muted-foreground mt-2">
+                Manage your recording sessions and collaborate with your team
+              </p>
             </div>
-          </div>
-
-          <div className="flex items-center space-x-4">
-            <Badge className="bg-primary/10 text-primary border-primary/20 capitalize">{user.plan} Plan</Badge>
-            <ThemeToggle />
-            <Button variant="ghost" size="sm">
-              <Settings className="w-4 h-4 mr-2" />
-              Settings
-            </Button>
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-r from-primary/20 to-primary/10 rounded-full flex items-center justify-center">
-                <span className="text-sm font-medium text-primary">
-                  {user.name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")}
-                </span>
-              </div>
-              <span className="text-sm font-medium">{user.name}</span>
-            </div>
-            <Button variant="ghost" size="sm">
-              <LogOut className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-      </nav>
-
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Welcome back, {user.name.split(" ")[0]}! 👋</h1>
-          <p className="text-muted-foreground text-lg">
-            Ready to create your next recording? Start a new session or review your past recordings.
-          </p>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
-          <Card className="p-6 border-0 shadow-lg bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/50 dark:to-blue-900/50">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Total Recordings</p>
-                <p className="text-3xl font-bold text-blue-700 dark:text-blue-300">{totalRecordings}</p>
-              </div>
-              <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center">
-                <Video className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-6 border-0 shadow-lg bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/50 dark:to-green-900/50">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-green-600 dark:text-green-400">Total Views</p>
-                <p className="text-3xl font-bold text-green-700 dark:text-green-300">{totalViews}</p>
-              </div>
-              <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-6 border-0 shadow-lg bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950/50 dark:to-purple-900/50">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-purple-600 dark:text-purple-400">Completed</p>
-                <p className="text-3xl font-bold text-purple-700 dark:text-purple-300">{completedRecordings}</p>
-              </div>
-              <div className="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center">
-                <Star className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-6 border-0 shadow-lg bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950/50 dark:to-orange-900/50">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-orange-600 dark:text-orange-400">Transcribed</p>
-                <p className="text-3xl font-bold text-orange-700 dark:text-orange-300">{transcribedRecordings}</p>
-              </div>
-              <div className="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center">
-                <FileText className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
-          <Card
-            className="p-6 border-0 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group bg-gradient-to-br from-primary/5 to-primary/10 hover:from-primary/10 hover:to-primary/20"
-            onClick={() => setShowCreateModal(true)}
-          >
-            <div className="flex items-center space-x-4">
-              <div className="w-14 h-14 bg-gradient-to-r from-primary to-primary/80 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                <Plus className="w-7 h-7 text-primary-foreground" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-lg group-hover:text-primary transition-colors">New Recording</h3>
-                <p className="text-sm text-muted-foreground">Start a fresh recording session</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-6 border-0 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group bg-gradient-to-br from-green-500/5 to-green-500/10 hover:from-green-500/10 hover:to-green-500/20">
-            <div className="flex items-center space-x-4">
-              <div className="w-14 h-14 bg-gradient-to-r from-green-500 to-green-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                <Video className="w-7 h-7 text-white" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-lg group-hover:text-green-600 transition-colors">Join Session</h3>
-                <p className="text-sm text-muted-foreground">Join an existing recording</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-6 border-0 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer group bg-gradient-to-br from-purple-500/5 to-purple-500/10 hover:from-purple-500/10 hover:to-purple-500/20">
-            <div className="flex items-center space-x-4">
-              <div className="w-14 h-14 bg-gradient-to-r from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                <Zap className="w-7 h-7 text-white" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-lg group-hover:text-purple-600 transition-colors">Quick Record</h3>
-                <p className="text-sm text-muted-foreground">Start recording instantly</p>
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        {/* Active Sessions */}
-        {sessions.length > 0 && (
-          <Card className="border-0 shadow-xl bg-card/50 backdrop-blur-sm mb-8">
-            <div className="p-6">
-              <h2 className="text-2xl font-semibold mb-6">Active Sessions</h2>
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {sessions.map((session) => (
-                  <Card
-                    key={session._id}
-                    className="p-4 border border-border/50 hover:shadow-lg transition-all duration-300"
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="font-medium truncate">{session.title}</h3>
-                      <Badge
-                        className={
-                          session.status === "active"
-                            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                            : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                        }
-                      >
-                        {session.status}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center space-x-4 text-sm text-muted-foreground mb-4">
-                      <div className="flex items-center">
-                        <Users className="w-4 h-4 mr-1" />
-                        {session.participantCount || 0}
-                      </div>
-                      <div className="flex items-center">
-                        <Calendar className="w-4 h-4 mr-1" />
-                        {new Date(session.createdAt).toLocaleDateString()}
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        size="sm"
-                        onClick={() => joinSession(session._id)}
-                        className="flex-1 bg-primary hover:bg-primary/80"
-                      >
-                        <ExternalLink className="w-4 h-4 mr-2" />
-                        Join
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => copySessionLink(session._id)} className="px-3">
-                        <Copy className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          </Card>
-        )}
-
-        {/* Recordings Section */}
-        <Card className="border-0 shadow-xl bg-card/50 backdrop-blur-sm">
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-semibold">Recent Recordings</h2>
-              <div className="flex items-center space-x-4">
-                {/* Search */}
-                <div className="relative">
-                  <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Search recordings..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 w-64 bg-background/50"
-                  />
-                </div>
-
-                {/* Filter */}
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value as any)}
-                  className="px-3 py-2 bg-background/50 border border-border rounded-md text-sm"
-                >
-                  <option value="all">All Status</option>
-                  <option value="completed">Completed</option>
-                  <option value="processing">Processing</option>
-                </select>
-
-                {/* View Mode */}
-                <div className="flex items-center space-x-1 bg-muted/50 rounded-lg p-1">
-                  <Button
-                    variant={viewMode === "grid" ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setViewMode("grid")}
-                    className="h-8 w-8 p-0"
-                  >
-                    <Grid3X3 className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant={viewMode === "list" ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setViewMode("list")}
-                    className="h-8 w-8 p-0"
-                  >
-                    <List className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            {/* Recordings Grid/List */}
-            {viewMode === "grid" ? (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredRecordings.map((recording) => (
-                  <Card
-                    key={recording.id}
-                    className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 group"
-                  >
-                    <div className="aspect-video bg-gradient-to-br from-muted/50 to-muted rounded-t-lg relative overflow-hidden">
-                      <img
-                        src={recording.thumbnail || "/placeholder.svg"}
-                        alt={recording.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                      <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button size="sm" className="bg-white/90 text-foreground hover:bg-white shadow-lg">
-                          <Play className="w-4 h-4 mr-2" />
-                          Play
-                        </Button>
-                      </div>
-                      {recording.transcribed && (
-                        <Badge className="absolute top-2 right-2 bg-green-500 text-white">
-                          <FileText className="w-3 h-3 mr-1" />
-                          Transcribed
-                        </Badge>
-                      )}
-                    </div>
-
-                    <div className="p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <h3 className="font-medium truncate group-hover:text-primary transition-colors">
-                          {recording.title}
-                        </h3>
-                        <Button variant="ghost" size="sm" className="p-1 h-auto">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </Button>
-                      </div>
-
-                      <div className="flex items-center space-x-4 text-sm text-muted-foreground mb-3">
-                        <div className="flex items-center">
-                          <Calendar className="w-4 h-4 mr-1" />
-                          {new Date(recording.date).toLocaleDateString()}
-                        </div>
-                        <div className="flex items-center">
-                          <Clock className="w-4 h-4 mr-1" />
-                          {recording.duration}
-                        </div>
-                      </div>
-
+            <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+              <DialogTrigger asChild>
+                <Button size="lg" className="bg-gradient-to-r from-primary to-primary/80">
+                  <Plus className="w-5 h-5 mr-2" />
+                  New Session
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                  <DialogTitle>Create New Session</DialogTitle>
+                  <DialogDescription>Set up a new recording session and invite participants</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="title">Session Title</Label>
+                    <Input
+                      id="title"
+                      placeholder="Enter session title"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="description">Description (Optional)</Label>
+                    <Textarea
+                      id="description"
+                      placeholder="Describe your session"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="participants">Participants</Label>
+                    <Input
+                      id="participants"
+                      placeholder="Enter email addresses separated by commas"
+                      value={participants}
+                      onChange={(e) => setParticipants(e.target.value)}
+                    />
+                    <p className="text-sm text-muted-foreground">Invitation emails will be sent automatically</p>
+                  </div>
+                  <div className="space-y-3">
+                    <Label>Session Settings</Label>
+                    <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <Badge
-                            variant={recording.status === "completed" ? "default" : "secondary"}
-                            className={
-                              recording.status === "completed"
-                                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                                : ""
-                            }
-                          >
-                            {recording.status === "completed" ? "Ready" : "Processing"}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">{recording.views} views</span>
-                        </div>
-
-                        <div className="flex items-center space-x-1">
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                            <Share2 className="w-4 h-4" />
-                          </Button>
-                          {recording.status === "completed" && (
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                              <Download className="w-4 h-4" />
-                            </Button>
-                          )}
-                        </div>
+                        <span className="text-sm">Record Video</span>
+                        <input
+                          type="checkbox"
+                          checked={settings.recordVideo}
+                          onChange={(e) => setSettings({ ...settings, recordVideo: e.target.checked })}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Record Audio</span>
+                        <input
+                          type="checkbox"
+                          checked={settings.recordAudio}
+                          onChange={(e) => setSettings({ ...settings, recordAudio: e.target.checked })}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Allow Chat</span>
+                        <input
+                          type="checkbox"
+                          checked={settings.allowChat}
+                          onChange={(e) => setSettings({ ...settings, allowChat: e.target.checked })}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Auto Transcribe</span>
+                        <input
+                          type="checkbox"
+                          checked={settings.autoTranscribe}
+                          onChange={(e) => setSettings({ ...settings, autoTranscribe: e.target.checked })}
+                        />
                       </div>
                     </div>
-                  </Card>
-                ))}
+                  </div>
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={createSession} disabled={isCreating || !title.trim()}>
+                    {isCreating ? (
+                      <>
+                        <div className="w-4 h-4 mr-2 animate-spin border-2 border-current border-t-transparent rounded-full" />
+                        Creating...
+                      </>
+                    ) : (
+                      "Create Session"
+                    )}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Sessions</CardTitle>
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{sessions.length}</div>
+              <p className="text-xs text-muted-foreground">All time sessions</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Active Sessions</CardTitle>
+              <Play className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{sessions.filter((s) => s.status === "active").length}</div>
+              <p className="text-xs text-muted-foreground">Currently recording</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Completed</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{sessions.filter((s) => s.status === "completed").length}</div>
+              <p className="text-xs text-muted-foreground">Finished sessions</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Sessions List */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Your Sessions</CardTitle>
+            <CardDescription>Manage and join your recording sessions</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {sessions.length === 0 ? (
+              <div className="text-center py-12">
+                <Calendar className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No sessions yet</h3>
+                <p className="text-muted-foreground mb-4">Create your first recording session to get started</p>
+                <Button onClick={() => setShowCreateDialog(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Session
+                </Button>
               </div>
             ) : (
               <div className="space-y-4">
-                {filteredRecordings.map((recording) => (
-                  <Card
-                    key={recording.id}
-                    className="p-4 border-0 shadow-md hover:shadow-lg transition-all duration-300"
+                {sessions.map((session) => (
+                  <div
+                    key={session._id}
+                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
                   >
-                    <div className="flex items-center space-x-4">
-                      <div className="w-20 h-12 bg-gradient-to-br from-muted/50 to-muted rounded overflow-hidden">
-                        <img
-                          src={recording.thumbnail || "/placeholder.svg"}
-                          alt={recording.title}
-                          className="w-full h-full object-cover"
-                        />
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-3 mb-2">
+                        <h3 className="font-semibold">{session.title}</h3>
+                        <Badge className={getStatusColor(session.status)}>{session.status}</Badge>
                       </div>
-                      <div className="flex-1">
-                        <h3 className="font-medium mb-1">{recording.title}</h3>
-                        <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                          <span>{new Date(recording.date).toLocaleDateString()}</span>
-                          <span>{recording.duration}</span>
-                          <span>{recording.participants} participants</span>
-                          <span>{recording.views} views</span>
+                      {session.description && (
+                        <p className="text-sm text-muted-foreground mb-2">{session.description}</p>
+                      )}
+                      <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                        <div className="flex items-center space-x-1">
+                          <Users className="w-4 h-4" />
+                          <span>{session.participants?.length || 0} participants</span>
                         </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge
-                          variant={recording.status === "completed" ? "default" : "secondary"}
-                          className={
-                            recording.status === "completed"
-                              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                              : ""
-                          }
-                        >
-                          {recording.status === "completed" ? "Ready" : "Processing"}
-                        </Badge>
-                        {recording.transcribed && (
-                          <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                            Transcribed
-                          </Badge>
-                        )}
-                        <Button variant="ghost" size="sm">
-                          <Play className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm">
-                          <Share2 className="w-4 h-4" />
-                        </Button>
-                        {recording.status === "completed" && (
-                          <Button variant="ghost" size="sm">
-                            <Download className="w-4 h-4" />
-                          </Button>
+                        <div className="flex items-center space-x-1">
+                          <Calendar className="w-4 h-4" />
+                          <span>{formatDate(session.createdAt)}</span>
+                        </div>
+                        {session.duration && (
+                          <div className="flex items-center space-x-1">
+                            <Clock className="w-4 h-4" />
+                            <span>
+                              {Math.floor(session.duration / 60)}m {session.duration % 60}s
+                            </span>
+                          </div>
                         )}
                       </div>
                     </div>
-                  </Card>
+                    <div className="flex items-center space-x-2">
+                      <Button variant="outline" size="sm" onClick={() => joinSession(session._id)}>
+                        <Play className="w-4 h-4 mr-2" />
+                        Join
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        <Settings className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => deleteSession(session._id)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
-
-            {/* Empty State */}
-            {filteredRecordings.length === 0 && (
-              <div className="text-center py-12">
-                <div className="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Video className="w-8 h-8 text-muted-foreground" />
-                </div>
-                <h3 className="text-lg font-medium mb-2">No recordings found</h3>
-                <p className="text-muted-foreground mb-4">
-                  {searchQuery ? "Try adjusting your search terms" : "Start your first recording to see it here"}
-                </p>
-                {!searchQuery && (
-                  <Button
-                    onClick={() => setShowCreateModal(true)}
-                    className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create New Recording
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
+          </CardContent>
         </Card>
       </div>
-
-      {/* Create Session Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-          <Card className="w-full max-w-md mx-4 p-6">
-            <h3 className="text-lg font-semibold mb-4">Create New Recording Session</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium mb-2 block">Session Title</label>
-                <Input
-                  value={newSessionTitle}
-                  onChange={(e) => setNewSessionTitle(e.target.value)}
-                  placeholder="Enter session title..."
-                  className="w-full"
-                />
-              </div>
-              <div className="flex space-x-3">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowCreateModal(false)}
-                  className="flex-1"
-                  disabled={isCreating}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={createSession}
-                  className="flex-1 bg-gradient-to-r from-primary to-primary/80"
-                  disabled={isCreating || !newSessionTitle.trim()}
-                >
-                  {isCreating ? "Creating..." : "Create & Join"}
-                </Button>
-              </div>
-            </div>
-          </Card>
-        </div>
-      )}
     </div>
   )
 }
